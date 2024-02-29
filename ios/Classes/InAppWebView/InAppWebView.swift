@@ -2536,9 +2536,12 @@ public class InAppWebView: WKWebView, UIScrollViewDelegate, WKUIDelegate, WKNavi
                let sslCertificate = challenge.protectionSpace.sslCertificate {
                 InAppWebView.sslCertificatesMap[challenge.protectionSpace.host] = sslCertificate
             }
+            let map = ServerTrustChallenge(fromChallenge: challenge).toMap()
+            DispatchQueue.main.async { [weak self] in
+                self?.channel?.invokeMethod("onReceivedServerTrustAuthRequest",
+                                      arguments: map, result: result)
+            }
         }
-        channel?.invokeMethod("onReceivedServerTrustAuthRequest",
-                              arguments: ServerTrustChallenge(fromChallenge: challenge).toMap(), result: result)
     }
     
     public func onReceivedClientCertRequest(challenge: URLAuthenticationChallenge, result: FlutterResult?) {
