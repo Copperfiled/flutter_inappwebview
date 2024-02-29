@@ -1767,50 +1767,49 @@ public class InAppWebView: WKWebView, UIScrollViewDelegate, WKUIDelegate, WKNavi
                     completionHandler(.performDefaultHandling, nil)
                 }
             }
-            
-            onReceivedServerTrustAuthRequest(challenge: challenge, result: {(result) -> Void in
-                decisionHandlerCrashAvoider.run = { () -> Void in
-                    if completionHandlerCalled {
-                        return
-                    }
-                    completionHandlerCalled = true
-                    if result is FlutterError {
-                        print((result as! FlutterError).message ?? "")
-                        completionHandler(.performDefaultHandling, nil)
-                    }
-                    else if (result as? NSObject) == FlutterMethodNotImplemented {
-                        completionHandler(.performDefaultHandling, nil)
-                    }
-                    else {
-                        var response: [String: Any]
-                        if let r = result {
-                            response = r as! [String: Any]
-                            var action = response["action"] as? Int
-                            action = action != nil ? action : 0;
-                            switch action {
-                            case 0:
-                                InAppWebView.credentialsProposed = []
-                                completionHandler(.cancelAuthenticationChallenge, nil)
-                                break
-                            case 1:
-                                DispatchQueue.global(qos: .background).async {
+            DispatchQueue.global(qos: .background).async { [weak self] in
+                self?.onReceivedServerTrustAuthRequest(challenge: challenge, result: {(result) -> Void in
+                    decisionHandlerCrashAvoider.run = { () -> Void in
+                        if completionHandlerCalled {
+                            return
+                        }
+                        completionHandlerCalled = true
+                        if result is FlutterError {
+                            print((result as! FlutterError).message ?? "")
+                            completionHandler(.performDefaultHandling, nil)
+                        }
+                        else if (result as? NSObject) == FlutterMethodNotImplemented {
+                            completionHandler(.performDefaultHandling, nil)
+                        }
+                        else {
+                            var response: [String: Any]
+                            if let r = result {
+                                response = r as! [String: Any]
+                                var action = response["action"] as? Int
+                                action = action != nil ? action : 0;
+                                switch action {
+                                case 0:
+                                    InAppWebView.credentialsProposed = []
+                                    completionHandler(.cancelAuthenticationChallenge, nil)
+                                    break
+                                case 1:
                                     let exceptions = SecTrustCopyExceptions(serverTrust)
                                     SecTrustSetExceptions(serverTrust, exceptions)
                                     let credential = URLCredential(trust: serverTrust)
                                     completionHandler(.useCredential, credential)
+                                    break
+                                default:
+                                    InAppWebView.credentialsProposed = []
+                                    completionHandler(.performDefaultHandling, nil)
                                 }
-                                break
-                            default:
-                                InAppWebView.credentialsProposed = []
-                                completionHandler(.performDefaultHandling, nil)
+                                return;
                             }
-                            return;
+                            completionHandler(.performDefaultHandling, nil)
                         }
-                        completionHandler(.performDefaultHandling, nil)
                     }
-                }
-                decisionHandlerCrashAvoider.run()
-            })
+                    decisionHandlerCrashAvoider.run()
+                })
+            }
         }
         else if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodClientCertificate {
             let decisionHandlerCrashAvoider = DecisionHandlerCrashAvoider()
